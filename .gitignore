@@ -1,0 +1,30 @@
+# Docker volumes (ข้อมูลจริง ไม่ต้อง commit)
+*/data/
+*/volumes/
+*/esdata/
+*/s3data/
+*/redisdata/
+*/amqpdata/
+*/rsakeys/
+*/n8n_data/
+*/zammad_pg_data/
+
+# Environment files ที่มี password
+.env
+*.env.local
+*.env.production
+
+# Logs & temp
+logs/
+tmp/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

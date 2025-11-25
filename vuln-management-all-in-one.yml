@@ -1,0 +1,123 @@
+# ไฟล์ชื่อ: vuln-management-all-in-one.yml
+version: '3.8'
+
+services:
+  # 1. Greenbone Community Edition (OpenVAS) – Full Stack
+  greenbone-db:
+    image: greenbone/pg-gvm
+    restart: unless-stopped
+    volumes:
+      - gvmd_data:/var/lib/gvm
+    ports: []  # ไม่ต้อง expose ออกนอก
+
+  greenbone-gvmd:
+    image: greenbone/gvmd
+    restart: unless-stopped
+    depends_on: [greenbone-db]
+    ports: []  
+
+  greenbone-gsa:
+    image: greenbone/gsa
+    restart: unless-stopped
+    ports:
+      - 8081:9392   # Web UI เข้า https://IP:8081 (admin/enable)
+
+  openvasd:
+    image: greenbone/openvasd
+    restart: unless-stopped
+
+  # 2. OpenCTI (Threat Intel)
+  opencti:
+    image: opencti/platform:5.12
+    restart: unless-stopped
+    environment:
+      - APP__PORT=8080
+    ports:
+      - 8080:8080   # เข้า https://IP:8080
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - 9200:9200
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  minio:
+    image: minio/minio
+    command: server /data
+    environment:
+      - MINIO_ROOT_USER=opencti
+      - MINIO_ROOT_PASSWORD=CHANGEME1234
+    ports:
+      - 9000:9000
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - 6379:6379
+
+  # 3. Zammad (Ticketing)
+  zammad-postgresql:
+    image: postgres:15
+    volumes:
+      - zammad_pg_data:/var/lib/postgresql/data
+
+  zammad-elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    environment:
+      - discovery.type=single-node
+
+  zammad:
+    image: zammad/zammad-docker-compose-zammad:6
+    restart: unless-stopped
+    ports:
+      - 8090:80     # เข้า http://IP:8090
+    depends_on:
+      - zammad-postgresql
+      - zammad-elasticsearch
+
+  # 4. n8n (Automation Engine)
+  n8n:
+    image: n8nio/n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=${YOUR_SERVER_IP_OR_DOMAIN}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=https   # ถ้ามี reverse proxy
+    ports:
+      - 5678:5678
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  # 5. Wazuh (Alerting + Light SIEM)
+  wazuh:
+    image: wazuh/wazuh-docker:all-in-one
+    restart: unless-stopped
+    ports:
+      - 5601:5601   # Kibana UI
+      - 1514:1514/udp
+      - 55000:55000
+    volumes:
+       - wazuh_data:/var/ossec/data     
+
+  # 6. Grafana (Dashboard)
+  grafana:
+    image: grafana/grafana-oss
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  gvmd_data:
+  es_data:
+  zammad_pg_data:
+  grafana_data:
+  n8n_data:
+  wazuh_data:       
